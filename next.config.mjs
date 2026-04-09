@@ -3,6 +3,7 @@ const nextConfig = {
   images: {
     remotePatterns: [],
   },
+  serverExternalPackages: ["@prisma/client", "prisma"],
 };
 
 export default nextConfig;

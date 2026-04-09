@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const schema = z.object({
   nome:             z.string().min(2, "Nome muito curto"),
   telefone:         z.string().min(8, "Telefone inválido"),
