@@ -1,0 +1,529 @@
+// ============================================================
+// FlowLead CRM — Prisma Schema
+// Plataforma Comercial Inteligente para Consórcio e Financiamento
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum PerfilUsuario {
+  VENDEDOR
+  GERENTE
+  SDR
+  ADMIN
+  GESTOR
+
+  @@map("perfil_usuario")
+}
+
+/// Temperatura / qualificação comercial do lead
+enum ScoreLead {
+  FRIO     // Sem interesse claro, pouca urgência
+  MORNO    // Interesse presente, sem urgência definida
+  QUENTE   // Interesse alto, urgência real
+  CRITICO  // Quente + sem ação recente (risco de perda)
+
+  @@map("score_lead")
+}
+
+/// Etapas do funil comercial
+enum StatusLead {
+  RECEBIDO              // Lead acabou de entrar no sistema
+  AGUARDANDO_ATRIBUICAO // Sem vendedor definido
+  AGUARDANDO_CONTATO    // Atribuído, ainda não houve tentativa
+  EM_TENTATIVA          // Vendedor tentou contato, não obteve resposta
+  EM_QUALIFICACAO       // Contato estabelecido, coletando dados
+  SIMULACAO_ANDAMENTO   // Simulação em elaboração
+  PROPOSTA_ENVIADA      // Proposta/simulação enviada ao lead
+  AGUARDANDO_RETORNO    // Aguardando resposta do lead
+  FOLLOW_UP_ATIVO       // Negociação em andamento com follow-ups ativos
+  OPORTUNIDADE_QUENTE   // Interesse confirmado, decisão próxima
+  NEGOCIACAO_AVANCADA   // Termos sendo discutidos
+  FECHADO               // Venda concluída
+  PERDIDO               // Lead não converteu (exige motivo)
+  REATIVACAO_FUTURA     // Perdido com potencial de retorno futuro
+
+  @@map("status_lead")
+}
+
+/// Canal pelo qual o lead chegou à operação
+enum TipoCanal {
+  WHATSAPP
+  SITE
+  TELEFONE
+  CAMPANHA
+  INDICACAO
+  MANUAL
+  REDES_SOCIAIS
+  EMAIL
+  OUTRO
+
+  @@map("tipo_canal")
+}
+
+/// Urgência declarada ou percebida do lead
+enum UrgenciaLead {
+  IMEDIATA      // Quer fechar em dias
+  CURTO_PRAZO   // Até 30 dias
+  MEDIO_PRAZO   // 1 a 3 meses
+  INDEFINIDA    // Sem prazo definido
+
+  @@map("urgencia_lead")
+}
+
+/// Produto de interesse do lead
+enum ProdutoInteresse {
+  CONSORCIO
+  FINANCIAMENTO
+  AMBOS
+
+  @@map("produto_interesse")
+}
+
+/// Tipo de registro no histórico do lead
+enum TipoHistorico {
+  LIGACAO         // Telefonema realizado
+  WHATSAPP        // Mensagem via WhatsApp
+  EMAIL           // Contato por e-mail
+  OBSERVACAO      // Anotação livre do vendedor
+  MUDANCA_STATUS  // Transição de etapa no funil (gerado pelo sistema)
+  PROPOSTA        // Envio ou registro de proposta/simulação
+  SISTEMA         // Evento automático (alerta, redistribuição, etc.)
+  REATIVACAO      // Lead foi reativado
+  ATRIBUICAO      // Lead foi atribuído ou redistribuído
+
+  @@map("tipo_historico")
+}
+
+/// Tipo de tarefa / próxima ação
+enum TipoTarefa {
+  PRIMEIRO_CONTATO    // Primeira abordagem ao lead
+  FOLLOW_UP           // Acompanhamento de andamento
+  ENVIAR_SIMULACAO    // Preparar e enviar simulação
+  COBRAR_RETORNO      // Cobrar resposta de proposta enviada
+  AGENDAR_REUNIAO     // Marcar reunião ou apresentação
+  REATIVAR            // Abordar lead frio/antigo
+  ENCERRAR            // Encerrar com motivo de perda
+  QUALIFICAR          // Coletar dados para qualificação
+
+  @@map("tipo_tarefa")
+}
+
+/// Estado atual de uma tarefa
+enum StatusTarefa {
+  PENDENTE    // Aguardando execução
+  REALIZADA   // Concluída pelo vendedor
+  VENCIDA     // Prazo expirado sem execução
+  CANCELADA   // Cancelada manualmente
+
+  @@map("status_tarefa")
+}
+
+/// Tipo de documento comercial enviado ao lead
+enum TipoProposta {
+  SIMULACAO       // Simulação informal de cenário
+  PROPOSTA_FORMAL // Proposta estruturada e formalizada
+
+  @@map("tipo_proposta")
+}
+
+/// Resposta do lead à proposta enviada
+enum RespostaProposta {
+  AGUARDANDO      // Sem resposta ainda
+  ACEITA          // Lead aceitou
+  RECUSADA        // Lead recusou
+  CONTRAPROPOSTA  // Lead pediu ajuste
+  SEM_RETORNO     // Não respondeu após follow-ups
+
+  @@map("resposta_proposta")
+}
+
+/// Tipo de notificação gerada pelo sistema
+enum TipoNotificacao {
+  LEAD_NOVO               // Novo lead atribuído ao vendedor
+  LEAD_SEM_CONTATO        // Lead sem primeiro contato após X horas
+  FOLLOW_UP_VENCIDO       // Follow-up com prazo expirado
+  LEAD_QUENTE_PARADO      // Lead quente sem ação há 24h+
+  PROPOSTA_SEM_RETORNO    // Proposta enviada sem resposta
+  ESCALONAMENTO_GERENTE   // Situação escalada para gerente
+  LEAD_REATIVADO          // Lead reativado respondeu
+  VENDEDOR_ACUMULO        // Vendedor com excesso de leads em atraso
+  RESUMO_DIARIO           // Resumo matinal automático
+  LEAD_FECHADO            // Venda concluída
+  LEAD_PERDIDO            // Lead marcado como perdido
+  SCORE_REBAIXADO         // Score do lead caiu automaticamente
+  SLA_VIOLADO             // Regra de SLA foi violada
+
+  @@map("tipo_notificacao")
+}
+
+/// Canal de envio da notificação
+enum CanalNotificacao {
+  INTERNO    // Apenas dentro do sistema (badge + painel)
+  WHATSAPP   // Mensagem via WhatsApp
+  EMAIL      // E-mail
+
+  @@map("canal_notificacao")
+}
+
+/// Categoria padronizada para motivo de perda
+enum CategoriaMotivoPerca {
+  PRECO        // Preço acima do esperado pelo lead
+  SEM_PERFIL   // Lead não tem perfil para o produto
+  SEM_URGENCIA // Lead não tem urgência para fechar
+  SEM_CREDITO  // Lead não tem capacidade financeira
+  SEM_RESPOSTA // Lead parou de responder
+  CONCORRENTE  // Fechou com outra empresa
+  DESISTENCIA  // Desistiu sem justificativa clara
+  OUTRO        // Motivo não enquadrado nos anteriores
+
+  @@map("categoria_motivo_perca")
+}
+
+/// Nível de severidade de uma regra de SLA
+enum NivelSla {
+  AVISO
+  CRITICO
+
+  @@map("nivel_sla")
+}
+
+/// A quem o alerta de SLA deve ser enviado
+enum DestinatarioSla {
+  VENDEDOR
+  GERENTE
+  AMBOS
+
+  @@map("destinatario_sla")
+}
+
+// ============================================================
+// MODELOS
+// ============================================================
+
+/// Unidade operacional (franquia ou filial Ademicon)
+model Unidade {
+  id       String  @id @default(cuid())
+  nome     String
+  codigo   String  @unique
+  cidade   String?
+  estado   String? @db.Char(2)
+  ativa    Boolean @default(true)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  usuarios Usuario[]
+  leads    Lead[]
+
+  @@map("unidades")
+}
+
+/// Usuário do sistema (qualquer perfil)
+model Usuario {
+  id                 String        @id @default(cuid())
+  nome               String
+  email              String        @unique
+  senha              String        // hash bcrypt
+  telefone           String?
+  perfil             PerfilUsuario
+  ativo              Boolean       @default(true)
+  capacidadeMaxLeads Int?          @map("capacidade_max_leads")
+  unidadeId          String        @map("unidade_id")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  // Relações
+  unidade            Unidade       @relation(fields: [unidadeId], references: [id])
+
+  leadsResponsavel   Lead[]        @relation("LeadResponsavel")
+  leadsSDR           Lead[]        @relation("LeadSDR")
+  leadsDistribuidos  Lead[]        @relation("LeadDistribuidor")
+
+  historicos         Historico[]
+  tarefas            Tarefa[]
+  propostas          Proposta[]
+  notificacoes       Notificacao[]
+  scoresAjustados    ScoreLog[]
+
+  @@index([unidadeId])
+  @@index([perfil])
+  @@map("usuarios")
+}
+
+/// Canal de origem dos leads
+model Canal {
+  id    String    @id @default(cuid())
+  nome  String    @unique
+  tipo  TipoCanal
+  ativo Boolean   @default(true)
+
+  leads Lead[]
+
+  @@map("canais")
+}
+
+/// Motivos de perda configuráveis pela operação
+model MotivoPerda {
+  id        String               @id @default(cuid())
+  descricao String
+  categoria CategoriaMotivoPerca
+  ativo     Boolean              @default(true)
+
+  leads Lead[]
+
+  @@map("motivos_perda")
+}
+
+/// Entidade central — representa uma oportunidade comercial
+model Lead {
+  id String @id @default(cuid())
+
+  // ── Dados de contato ──────────────────────────────────────
+  nome     String
+  telefone String
+  email    String?
+
+  // ── Origem ───────────────────────────────────────────────
+  canalOrigemId  String  @map("canal_origem_id")
+  campanhaOrigem String? @map("campanha_origem")
+
+  // ── Responsabilidade ─────────────────────────────────────
+  responsavelId   String? @map("responsavel_id")
+  sdrId           String? @map("sdr_id")
+  distribuidorId  String? @map("distribuidor_id") // quem fez a atribuição
+  unidadeId       String  @map("unidade_id")
+
+  // ── Classificação ────────────────────────────────────────
+  score  ScoreLead  @default(MORNO)
+  status StatusLead @default(RECEBIDO)
+
+  // ── Dados comerciais ─────────────────────────────────────
+  produtoInteresse ProdutoInteresse @default(CONSORCIO)  @map("produto_interesse")
+  valorPretendido  Decimal?         @db.Decimal(12, 2)   @map("valor_pretendido")
+  rendaDeclarada   Decimal?         @db.Decimal(12, 2)   @map("renda_declarada")
+  urgencia         UrgenciaLead     @default(INDEFINIDA)
+  cidade           String?
+  estado           String?          @db.Char(2)
+  observacoes      String?          @db.Text
+
+  // ── Controle temporal ────────────────────────────────────
+  dataEntrada           DateTime  @default(now()) @map("data_entrada")
+  dataPrimeiroContato   DateTime? @map("data_primeiro_contato")
+  dataUltimaInteracao   DateTime? @map("data_ultima_interacao")
+  dataFechamento        DateTime? @map("data_fechamento")
+  reativacaoAgendada    DateTime? @map("reativacao_agendada")
+
+  // ── Perda ────────────────────────────────────────────────
+  motivoPerdaId String? @map("motivo_perda_id")
+
+  // ── Deduplicação ─────────────────────────────────────────
+  /// ID do lead original caso este seja identificado como duplicata
+  duplicataDe String? @map("duplicata_de")
+
+  criadoEm     DateTime @default(now())  @map("criado_em")
+  atualizadoEm DateTime @updatedAt       @map("atualizado_em")
+
+  // ── Relações ─────────────────────────────────────────────
+  canalOrigem  Canal        @relation(fields: [canalOrigemId], references: [id])
+  responsavel  Usuario?     @relation("LeadResponsavel",  fields: [responsavelId],  references: [id])
+  sdr          Usuario?     @relation("LeadSDR",          fields: [sdrId],          references: [id])
+  distribuidor Usuario?     @relation("LeadDistribuidor", fields: [distribuidorId], references: [id])
+  unidade      Unidade      @relation(fields: [unidadeId], references: [id])
+  motivoPerda  MotivoPerda? @relation(fields: [motivoPerdaId], references: [id])
+
+  /// Lead original do qual este é duplicata
+  leadOrigem Lead?  @relation("Duplicatas", fields: [duplicataDe], references: [id])
+  /// Leads que são duplicatas deste
+  duplicatas Lead[] @relation("Duplicatas")
+
+  historicos   Historico[]
+  tarefas      Tarefa[]
+  propostas    Proposta[]
+  notificacoes Notificacao[]
+  scoresLog    ScoreLog[]
+
+  // ── Índices ──────────────────────────────────────────────
+  @@index([telefone])
+  @@index([email])
+  @@index([responsavelId])
+  @@index([status])
+  @@index([score])
+  @@index([unidadeId])
+  @@index([dataUltimaInteracao])
+  @@index([dataEntrada])
+  @@index([reativacaoAgendada])
+  @@map("leads")
+}
+
+/// Linha do tempo imutável de tudo que aconteceu com o lead.
+/// Registros não devem ser editados — apenas adicionados.
+model Historico {
+  id             String        @id @default(cuid())
+  leadId         String        @map("lead_id")
+  usuarioId      String        @map("usuario_id")
+  tipo           TipoHistorico
+  descricao      String        @db.Text
+
+  /// Status antes da mudança (preenchido apenas em MUDANCA_STATUS)
+  statusAnterior StatusLead?   @map("status_anterior")
+  /// Status após a mudança
+  statusNovo     StatusLead?   @map("status_novo")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  lead    Lead    @relation(fields: [leadId],    references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([leadId])
+  @@index([criadoEm])
+  @@map("historicos")
+}
+
+/// Tarefa / próxima ação associada a um lead
+model Tarefa {
+  id               String       @id @default(cuid())
+  leadId           String       @map("lead_id")
+  usuarioId        String       @map("usuario_id")
+  tipoAcao         TipoTarefa   @map("tipo_acao")
+  descricao        String       @db.Text
+  prazo            DateTime
+  status           StatusTarefa @default(PENDENTE)
+  concluidaEm      DateTime?    @map("concluida_em")
+  /// Indica se a tarefa foi gerada por automação do sistema
+  criadaPorSistema Boolean      @default(false) @map("criada_por_sistema")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt      @map("atualizado_em")
+
+  lead    Lead    @relation(fields: [leadId],    references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([leadId])
+  @@index([usuarioId])
+  @@index([prazo])
+  @@index([status])
+  @@map("tarefas")
+}
+
+/// Proposta ou simulação enviada ao lead
+model Proposta {
+  id               String           @id @default(cuid())
+  leadId           String           @map("lead_id")
+  usuarioId        String           @map("usuario_id")
+  tipo             TipoProposta
+  produto          ProdutoInteresse
+
+  // Detalhes financeiros
+  valorCarta       Decimal? @db.Decimal(12, 2) @map("valor_carta")
+  prazoMeses       Int?                         @map("prazo_meses")
+  parcelaEstimada  Decimal? @db.Decimal(10, 2) @map("parcela_estimada")
+
+  /// Descrição narrativa do cenário oferecido
+  cenarioDescricao String?  @db.Text @map("cenario_descricao")
+
+  enviadoEm    DateTime         @default(now())   @map("enviado_em")
+  resposta     RespostaProposta @default(AGUARDANDO)
+  respostaEm   DateTime?                          @map("resposta_em")
+  observacoes  String?          @db.Text
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  lead    Lead    @relation(fields: [leadId],    references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([leadId])
+  @@index([resposta])
+  @@index([enviadoEm])
+  @@map("propostas")
+}
+
+/// Notificação interna ou externa gerada para um usuário
+model Notificacao {
+  id        String           @id @default(cuid())
+  usuarioId String           @map("usuario_id")
+  leadId    String?          @map("lead_id")
+  tipo      TipoNotificacao
+  mensagem  String           @db.Text
+  canal     CanalNotificacao @default(INTERNO)
+  lida      Boolean          @default(false)
+  enviadaEm DateTime         @default(now()) @map("enviada_em")
+  lidaEm    DateTime?                        @map("lida_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  lead    Lead?   @relation(fields: [leadId],    references: [id], onDelete: SetNull)
+
+  @@index([usuarioId])
+  @@index([lida])
+  @@index([enviadaEm])
+  @@map("notificacoes")
+}
+
+/// Log de todas as variações de score de um lead
+model ScoreLog {
+  id            String    @id @default(cuid())
+  leadId        String    @map("lead_id")
+  scoreAnterior ScoreLead @map("score_anterior")
+  scoreNovo     ScoreLead @map("score_novo")
+  motivo        String?   @db.Text
+  /// "SISTEMA" ou o nome/perfil do usuário que ajustou manualmente
+  calculadoPor  String    @default("SISTEMA") @map("calculado_por")
+  usuarioId     String?   @map("usuario_id")
+  calculadoEm  DateTime  @default(now()) @map("calculado_em")
+
+  lead    Lead     @relation(fields: [leadId],    references: [id], onDelete: Cascade)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([leadId])
+  @@index([calculadoEm])
+  @@map("scores_log")
+}
+
+/// Regras de SLA que disparam alertas e automações
+model SlaConfig {
+  id             String          @id @default(cuid())
+  nome           String
+  /// Identificador do evento que dispara a regra (ex: "LEAD_SEM_CONTATO")
+  tipoEvento     String          @map("tipo_evento")
+  thresholdHoras Int             @map("threshold_horas")
+  nivel          NivelSla
+  destinatario   DestinatarioSla
+  ativo          Boolean         @default(true)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt      @map("atualizado_em")
+
+  @@unique([tipoEvento, nivel])
+  @@map("sla_config")
+}
+
+/// Campanha de reativação de base fria
+model Campanha {
+  id           String    @id @default(cuid())
+  nome         String
+  descricao    String?   @db.Text
+  tipo         String
+  publicoAlvo  String?   @db.Text  @map("publico_alvo")
+  /// Critérios de filtragem da base em JSON (ex: score, dias sem contato, produto)
+  criteriosJson Json?                @map("criterios_json")
+  ativa        Boolean   @default(true)
+  inicio       DateTime?
+  fim          DateTime?
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt      @map("atualizado_em")
+
+  @@map("campanhas")
+}
