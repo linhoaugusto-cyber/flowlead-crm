@@ -41,21 +41,31 @@ export default function LoginPage() {
   async function onSubmit(data: LoginForm) {
     setServerError(null);
 
-    const result = await signIn("credentials", {
-      email: data.email.toLowerCase().trim(),
-      password: data.password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email:    data.email.toLowerCase().trim(),
+        password: data.password,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setServerError("E-mail ou senha incorretos. Tente novamente.");
-      return;
+      if (!result) {
+        setServerError("Sem resposta do servidor. Tente novamente.");
+        return;
+      }
+
+      if (result.error) {
+        setServerError("E-mail ou senha incorretos. Tente novamente.");
+        return;
+      }
+
+      const session = await getSession();
+      const perfil  = (session?.user as { perfil?: string })?.perfil ?? "VENDEDOR";
+      router.push(ROLE_REDIRECT[perfil] ?? "/dashboard/vendedor");
+      router.refresh();
+    } catch (err) {
+      console.error("Erro no login:", err);
+      setServerError("Erro inesperado. Verifique sua conexão e tente novamente.");
     }
-
-    const session = await getSession();
-    const perfil = (session?.user as { perfil?: string })?.perfil ?? "VENDEDOR";
-    router.push(ROLE_REDIRECT[perfil] ?? "/dashboard/vendedor");
-    router.refresh();
   }
 
   return (
@@ -233,7 +243,7 @@ export default function LoginPage() {
           <div className="mt-8 p-3 bg-slate-50 border border-slate-100 rounded-lg">
             <p className="text-xs text-slate-400 font-medium mb-1">Acesso de desenvolvimento</p>
             <p className="text-xs text-slate-500">
-              admin@flowlead.com.br / FlowLead@2024
+              admin@flowlead.com.br / Admin@1234
             </p>
           </div>
         </div>
