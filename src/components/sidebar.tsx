@@ -35,7 +35,7 @@ const NAV_VENDEDOR: NavItem[] = [
 const NAV_GERENTE: NavItem[] = [
   { label: "Painel",          href: "/dashboard/gerente",        icon: LayoutDashboard },
   { label: "Leads",           href: "/dashboard/leads",          icon: Users           },
-  { label: "Equipe",          href: "/dashboard/equipe",         icon: Users           },
+  { label: "Equipe",          href: "/dashboard/equipe",         icon: CheckSquare     },
   { label: "Relatórios",      href: "/dashboard/relatorios",     icon: BarChart3       },
   { label: "Notificações",    href: "/dashboard/notificacoes",   icon: Bell            },
   { label: "Configurações",   href: "/dashboard/configuracoes",  icon: Settings        },

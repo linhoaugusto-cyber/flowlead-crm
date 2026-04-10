@@ -100,7 +100,7 @@ export default async function ConfiguracoesPage() {
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium text-slate-800">{u.nome}</span>
                           {u.id === session.user.id && (
-                            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" title="Você" />
+                            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
                           )}
                         </div>
                       </div>

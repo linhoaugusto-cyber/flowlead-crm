@@ -120,10 +120,10 @@ export default async function VendedorPage() {
       orderBy: { prazo: "asc" },
       take: 6,
       select: {
-        id:    true,
-        titulo:true,
-        prazo: true,
-        lead:  { select: { id: true, nome: true, telefone: true, score: true } },
+        id:       true,
+        descricao:true,
+        prazo:    true,
+        lead:     { select: { id: true, nome: true, telefone: true, score: true } },
       },
     }),
   ]);
@@ -281,7 +281,7 @@ export default async function VendedorPage() {
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-800 truncate">{t.lead?.nome ?? "—"}</p>
-                        <p className="text-xs text-slate-500 mt-0.5 truncate">{t.titulo}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 truncate">{t.descricao}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-red-600 font-medium">
                             {diasAtraso === 0 ? "Venceu hoje" : `${diasAtraso}d de atraso`}
