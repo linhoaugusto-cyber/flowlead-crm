@@ -154,16 +154,16 @@ export default async function LeadsPage({
                     >
                       {/* Nome */}
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
+                        <Link href={`/dashboard/leads/${lead.id}`} className="flex items-center gap-2.5">
                           <div className="w-7 h-7 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
                             <span className="text-blue-600 text-xs font-bold">
                               {lead.nome.charAt(0).toUpperCase()}
                             </span>
                           </div>
-                          <span className="font-medium text-slate-800 whitespace-nowrap">
+                          <span className="font-medium text-slate-800 whitespace-nowrap hover:text-blue-600 transition-colors">
                             {lead.nome}
                           </span>
-                        </div>
+                        </Link>
                       </td>
 
                       {/* Telefone */}
