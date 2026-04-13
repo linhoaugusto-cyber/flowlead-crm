@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { ScoreLead, StatusLead, TipoHistorico } from "@prisma/client";
 import { RegistrarInteracao } from "./registrar-interacao";
+import { AlterarStatus } from "./alterar-status";
+import { AtribuirVendedor } from "./atribuir-vendedor";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +99,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
       dataPrimeiroContato: true,
       dataUltimaInteracao: true,
       unidadeId:           true,
+      responsavelId:       true,
       canalOrigem:         { select: { nome: true } },
       responsavel:         { select: { id: true, nome: true } },
       historicos: {
@@ -116,6 +119,16 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
   });
 
   if (!lead || lead.unidadeId !== session.user.unidadeId) notFound();
+
+  const isGerente = ["GERENTE", "ADMIN", "GESTOR"].includes(session.user.perfil);
+
+  const vendedores = isGerente
+    ? await prisma.usuario.findMany({
+        where:   { unidadeId: session.user.unidadeId, ativo: true, perfil: { in: ["VENDEDOR", "SDR"] } },
+        select:  { id: true, nome: true },
+        orderBy: { nome: "asc" },
+      })
+    : [];
 
   const sc = SCORE_CONFIG[lead.score];
 
@@ -144,11 +157,18 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold text-slate-900">{lead.nome}</h1>
             <span className={`text-xs px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-              {STATUS_LABEL[lead.status] ?? lead.status}
-            </span>
           </div>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <AlterarStatus leadId={lead.id} statusAtual={lead.status} />
+            {isGerente && (
+              <AtribuirVendedor
+                leadId={lead.id}
+                responsavelId={lead.responsavelId}
+                vendedores={vendedores}
+              />
+            )}
+          </div>
+          <p className="text-xs text-slate-400 mt-1.5">
             Canal: {lead.canalOrigem?.nome ?? "—"} · Entrada: {formatarDataCurta(lead.dataEntrada)}
           </p>
         </div>
