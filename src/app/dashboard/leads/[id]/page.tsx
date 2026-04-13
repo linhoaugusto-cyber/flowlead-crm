@@ -5,12 +5,14 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Phone, MessageSquare, Mail, StickyNote,
-  Clock, TrendingUp, User, Building2, Calendar,
+  Clock, TrendingUp, User, Building2, Calendar, CheckCircle2,
 } from "lucide-react";
 import { ScoreLead, StatusLead, TipoHistorico } from "@prisma/client";
 import { RegistrarInteracao } from "./registrar-interacao";
 import { AlterarStatus } from "./alterar-status";
+import { AlterarScore } from "./alterar-score";
 import { AtribuirVendedor } from "./atribuir-vendedor";
+import { AgendarTarefa } from "./agendar-tarefa";
 
 export const dynamic = "force-dynamic";
 
@@ -122,13 +124,22 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
 
   const isGerente = ["GERENTE", "ADMIN", "GESTOR"].includes(session.user.perfil);
 
-  const vendedores = isGerente
-    ? await prisma.usuario.findMany({
-        where:   { unidadeId: session.user.unidadeId, ativo: true, perfil: { in: ["VENDEDOR", "SDR"] } },
-        select:  { id: true, nome: true },
-        orderBy: { nome: "asc" },
-      })
-    : [];
+  const [vendedores, tarefas] = await Promise.all([
+    isGerente
+      ? prisma.usuario.findMany({
+          where:   { unidadeId: session.user.unidadeId, ativo: true, perfil: { in: ["VENDEDOR", "SDR"] } },
+          select:  { id: true, nome: true },
+          orderBy: { nome: "asc" },
+        })
+      : Promise.resolve([]),
+    prisma.tarefa.findMany({
+      where:   { leadId: params.id, status: "PENDENTE" },
+      orderBy: { prazo: "asc" },
+      take:    10,
+      select:  { id: true, tipoAcao: true, descricao: true, prazo: true, usuario: { select: { nome: true } } },
+    }),
+  ]);
+
 
   const sc = SCORE_CONFIG[lead.score];
 
@@ -160,6 +171,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <AlterarStatus leadId={lead.id} statusAtual={lead.status} />
+            <AlterarScore leadId={lead.id} scoreAtual={lead.score} />
             {isGerente && (
               <AtribuirVendedor
                 leadId={lead.id}
@@ -172,7 +184,10 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             Canal: {lead.canalOrigem?.nome ?? "—"} · Entrada: {formatarDataCurta(lead.dataEntrada)}
           </p>
         </div>
-        <RegistrarInteracao leadId={lead.id} />
+        <div className="flex flex-col gap-2 flex-shrink-0">
+          <RegistrarInteracao leadId={lead.id} />
+          <AgendarTarefa leadId={lead.id} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -238,6 +253,34 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               <p className="text-sm text-slate-600 leading-relaxed">{lead.observacoes}</p>
             </div>
           )}
+
+          {/* Tarefas pendentes */}
+          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-slate-400" />Tarefas Pendentes
+            </h2>
+            {tarefas.length === 0 ? (
+              <p className="text-xs text-slate-400">Nenhuma tarefa pendente.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {tarefas.map((t) => {
+                  const vencida = new Date(t.prazo) < new Date();
+                  return (
+                    <div key={t.id} className={`rounded-lg p-3 border text-xs ${vencida ? "bg-red-50 border-red-100" : "bg-slate-50 border-slate-100"}`}>
+                      <p className={`font-semibold mb-0.5 ${vencida ? "text-red-700" : "text-slate-700"}`}>
+                        {t.tipoAcao.replace(/_/g, " ")}
+                      </p>
+                      <p className="text-slate-600 leading-relaxed line-clamp-2">{t.descricao}</p>
+                      <p className={`mt-1 ${vencida ? "text-red-500" : "text-slate-400"}`}>
+                        {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(t.prazo))}
+                        {vencida && " · Vencida"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Histórico */}
