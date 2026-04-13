@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { CategoriaMotivoPerca } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 const MOTIVOS = [
-  { descricao: "Preço acima do esperado",    categoria: CategoriaMotivoPerca.PRECO        },
-  { descricao: "Sem perfil para o produto",  categoria: CategoriaMotivoPerca.SEM_PERFIL   },
-  { descricao: "Sem urgência no momento",    categoria: CategoriaMotivoPerca.SEM_URGENCIA },
-  { descricao: "Sem capacidade financeira",  categoria: CategoriaMotivoPerca.SEM_CREDITO  },
-  { descricao: "Parou de responder",         categoria: CategoriaMotivoPerca.SEM_RESPOSTA },
-  { descricao: "Fechou com concorrente",     categoria: CategoriaMotivoPerca.CONCORRENTE  },
-  { descricao: "Desistiu sem justificativa", categoria: CategoriaMotivoPerca.DESISTENCIA  },
-  { descricao: "Outro motivo",               categoria: CategoriaMotivoPerca.OUTRO        },
+  { descricao: "Preço acima do esperado",    categoria: "PRECO"        },
+  { descricao: "Sem perfil para o produto",  categoria: "SEM_PERFIL"   },
+  { descricao: "Sem urgência no momento",    categoria: "SEM_URGENCIA" },
+  { descricao: "Sem capacidade financeira",  categoria: "SEM_CREDITO"  },
+  { descricao: "Parou de responder",         categoria: "SEM_RESPOSTA" },
+  { descricao: "Fechou com concorrente",     categoria: "CONCORRENTE"  },
+  { descricao: "Desistiu sem justificativa", categoria: "DESISTENCIA"  },
+  { descricao: "Outro motivo",               categoria: "OUTRO"        },
 ];
 
 export async function GET() {
