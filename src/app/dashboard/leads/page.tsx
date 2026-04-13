@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Plus, Users, Search } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { StatusLead, ScoreLead } from "@prisma/client";
 import { LeadsFilters } from "./leads-filters";
 import { Suspense } from "react";
@@ -55,19 +55,28 @@ function formatData(date: Date | null) {
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: { status?: string };
+  searchParams: { status?: string; q?: string };
 }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const isVendedor = ["VENDEDOR", "SDR"].includes(session.user.perfil);
+  const isVendedor   = ["VENDEDOR", "SDR"].includes(session.user.perfil);
   const statusFiltro = searchParams.status as StatusLead | undefined;
+  const q            = searchParams.q?.trim();
 
   const leads = await prisma.lead.findMany({
     where: {
       unidadeId: session.user.unidadeId,
       ...(isVendedor ? { responsavelId: session.user.id } : {}),
       ...(statusFiltro ? { status: statusFiltro } : {}),
+      ...(q
+        ? {
+            OR: [
+              { nome:     { contains: q, mode: "insensitive" } },
+              { telefone: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
     },
     select: {
       id:                  true,
@@ -108,10 +117,6 @@ export default async function LeadsPage({
         <Suspense>
           <LeadsFilters />
         </Suspense>
-        <div className="ml-auto flex items-center gap-2 text-sm text-slate-400">
-          <Search className="w-4 h-4" />
-          <span className="hidden sm:inline">Busca avançada em breve</span>
-        </div>
       </div>
 
       {/* Tabela */}
@@ -121,8 +126,8 @@ export default async function LeadsPage({
             <Users className="w-10 h-10 text-slate-300 mb-3" />
             <p className="text-slate-500 font-medium">Nenhum lead encontrado</p>
             <p className="text-sm text-slate-400 mt-1">
-              {statusFiltro
-                ? "Tente remover o filtro de status."
+              {q || statusFiltro
+                ? "Tente ajustar os filtros de busca."
                 : "Clique em Novo Lead para começar."}
             </p>
           </div>

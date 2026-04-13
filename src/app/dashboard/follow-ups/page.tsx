@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { CheckSquare, AlertTriangle, Clock, PhoneCall, MessageSquare, CheckCircle } from "lucide-react";
 import { ScoreLead, TipoTarefa } from "@prisma/client";
+import { ConcluirTarefa } from "./concluir-tarefa";
 
 export const dynamic = "force-dynamic";
 
@@ -117,6 +118,7 @@ export default async function FollowUpsPage() {
               className="w-7 h-7 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center justify-center transition-colors">
               <PhoneCall className="w-3.5 h-3.5 text-blue-600" />
             </a>
+            <ConcluirTarefa tarefaId={t.id} />
           </div>
         </div>
       </div>
