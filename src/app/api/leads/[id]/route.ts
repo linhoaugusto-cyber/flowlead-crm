@@ -7,13 +7,34 @@ import { StatusLead } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
+// Statuses que implicam que o vendedor já fez ao menos uma tentativa de contato
+const STATUS_CONTATO_FEITO = new Set<StatusLead>([
+  "EM_TENTATIVA",
+  "EM_QUALIFICACAO",
+  "SIMULACAO_ANDAMENTO",
+  "PROPOSTA_ENVIADA",
+  "AGUARDANDO_RETORNO",
+  "FOLLOW_UP_ATIVO",
+  "OPORTUNIDADE_QUENTE",
+  "NEGOCIACAO_AVANCADA",
+  "FECHADO",
+  "PERDIDO",
+  "REATIVACAO_FUTURA",
+]);
+
 const schema = z.object({
   status:        z.nativeEnum(StatusLead).optional(),
   responsavelId: z.string().nullable().optional(),
   score:         z.enum(["FRIO", "MORNO", "QUENTE", "CRITICO"]).optional(),
-}).refine((d) => d.status !== undefined || d.responsavelId !== undefined || d.score !== undefined, {
-  message: "Informe ao menos um campo para atualizar.",
-});
+  motivoPerdaId: z.string().nullable().optional(),
+}).refine(
+  (d) =>
+    d.status !== undefined ||
+    d.responsavelId !== undefined ||
+    d.score !== undefined ||
+    d.motivoPerdaId !== undefined,
+  { message: "Informe ao menos um campo para atualizar." }
+);
 
 export async function PATCH(
   req: Request,
@@ -31,16 +52,27 @@ export async function PATCH(
 
     const lead = await prisma.lead.findUnique({
       where:  { id: params.id },
-      select: { id: true, unidadeId: true, status: true, responsavelId: true },
+      select: {
+        id:                  true,
+        unidadeId:           true,
+        status:              true,
+        responsavelId:       true,
+        dataPrimeiroContato: true,
+      },
     });
 
     if (!lead || lead.unidadeId !== session.user.unidadeId) {
       return NextResponse.json({ error: "Lead não encontrado" }, { status: 404 });
     }
 
-    const { status, responsavelId, score } = parsed.data;
+    const { status, responsavelId, score, motivoPerdaId } = parsed.data;
     const agora = new Date();
-    const historicos: { tipo: "MUDANCA_STATUS" | "ATRIBUICAO"; descricao: string; statusAnterior?: StatusLead; statusNovo?: StatusLead }[] = [];
+    const historicos: {
+      tipo: "MUDANCA_STATUS" | "ATRIBUICAO";
+      descricao: string;
+      statusAnterior?: StatusLead;
+      statusNovo?: StatusLead;
+    }[] = [];
 
     if (status && status !== lead.status) {
       historicos.push({
@@ -54,7 +86,10 @@ export async function PATCH(
     if (responsavelId !== undefined && responsavelId !== lead.responsavelId) {
       let nomeVendedor = "ninguém";
       if (responsavelId) {
-        const u = await prisma.usuario.findUnique({ where: { id: responsavelId }, select: { nome: true } });
+        const u = await prisma.usuario.findUnique({
+          where:  { id: responsavelId },
+          select: { nome: true },
+        });
         nomeVendedor = u?.nome ?? responsavelId;
       }
       historicos.push({
@@ -63,26 +98,34 @@ export async function PATCH(
       });
     }
 
+    // Preenche dataPrimeiroContato quando o status avança para além da fila inicial
+    const devePrimeiroContato =
+      !lead.dataPrimeiroContato &&
+      status !== undefined &&
+      STATUS_CONTATO_FEITO.has(status);
+
     await prisma.$transaction([
       prisma.lead.update({
         where: { id: params.id },
         data: {
-          ...(status        ? { status }        : {}),
-          ...(score         ? { score }          : {}),
+          ...(status         ? { status }         : {}),
+          ...(score          ? { score }           : {}),
           ...(responsavelId !== undefined ? { responsavelId } : {}),
+          ...(motivoPerdaId  !== undefined ? { motivoPerdaId } : {}),
           ...(status === "FECHADO" ? { dataFechamento: agora } : {}),
+          ...(devePrimeiroContato  ? { dataPrimeiroContato: agora } : {}),
           dataUltimaInteracao: agora,
         },
       }),
       ...historicos.map((h) =>
         prisma.historico.create({
           data: {
-            leadId:        params.id,
-            usuarioId:     session.user.id,
-            tipo:          h.tipo,
-            descricao:     h.descricao,
+            leadId:    params.id,
+            usuarioId: session.user.id,
+            tipo:      h.tipo,
+            descricao: h.descricao,
             ...(h.statusAnterior ? { statusAnterior: h.statusAnterior } : {}),
-            ...(h.statusNovo     ? { statusNovo: h.statusNovo }         : {}),
+            ...(h.statusNovo     ? { statusNovo:     h.statusNovo }     : {}),
           },
         })
       ),

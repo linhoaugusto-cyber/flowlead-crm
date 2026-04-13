@@ -124,7 +124,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
 
   const isGerente = ["GERENTE", "ADMIN", "GESTOR"].includes(session.user.perfil);
 
-  const [vendedores, tarefas] = await Promise.all([
+  const [vendedores, tarefas, motivos] = await Promise.all([
     isGerente
       ? prisma.usuario.findMany({
           where:   { unidadeId: session.user.unidadeId, ativo: true, perfil: { in: ["VENDEDOR", "SDR"] } },
@@ -137,6 +137,11 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
       orderBy: { prazo: "asc" },
       take:    10,
       select:  { id: true, tipoAcao: true, descricao: true, prazo: true, usuario: { select: { nome: true } } },
+    }),
+    prisma.motivoPerda.findMany({
+      where:   { ativo: true },
+      select:  { id: true, descricao: true },
+      orderBy: { descricao: "asc" },
     }),
   ]);
 
@@ -170,7 +175,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <span className={`text-xs px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
           </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <AlterarStatus leadId={lead.id} statusAtual={lead.status} />
+            <AlterarStatus leadId={lead.id} statusAtual={lead.status} motivos={motivos} />
             <AlterarScore leadId={lead.id} scoreAtual={lead.score} />
             {isGerente && (
               <AtribuirVendedor

@@ -41,15 +41,14 @@ async function main() {
   ];
 
   for (const motivo of motivosPerdaData) {
-    await prisma.motivoPerda.upsert({
-      where: { id: motivo.descricao }, // força upsert por descrição única
-      update: {},
-      create: motivo,
-    }).catch(() =>
-      prisma.motivoPerda.create({ data: motivo })
-    );
+    const exists = await prisma.motivoPerda.findFirst({
+      where: { descricao: motivo.descricao },
+    });
+    if (!exists) {
+      await prisma.motivoPerda.create({ data: motivo });
+    }
   }
-  console.log(`✅ ${motivosPerdaData.length} motivos de perda criados`);
+  console.log(`✅ ${motivosPerdaData.length} motivos de perda verificados`);
 
   // ── 3. Regras de SLA ─────────────────────────────────────
   const slaRules = [

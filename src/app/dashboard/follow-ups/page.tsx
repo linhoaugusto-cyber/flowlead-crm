@@ -46,6 +46,12 @@ export default async function FollowUpsPage() {
 
   const isGerente = ["GERENTE", "ADMIN", "GESTOR"].includes(session.user.perfil);
 
+  // Marca lazily como VENCIDA qualquer tarefa PENDENTE com prazo expirado
+  await prisma.tarefa.updateMany({
+    where: { status: "PENDENTE", prazo: { lt: new Date() } },
+    data:  { status: "VENCIDA" },
+  });
+
   const where = isGerente
     ? { lead: { unidadeId: session.user.unidadeId }, status: { in: ["PENDENTE", "VENCIDA"] as const } }
     : { usuarioId: session.user.id, status: { in: ["PENDENTE", "VENCIDA"] as const } };
